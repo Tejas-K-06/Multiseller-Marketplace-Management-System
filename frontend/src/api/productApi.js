@@ -5,7 +5,8 @@ import { mockGetProduct, mockListProducts, mockProductReviews } from '../mock/pr
 export function getProducts(params = {}) {
   if (isMockMode()) return Promise.resolve(mockListProducts(params))
   const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== ''))
-  return apiRequest(`/products?${query.toString()}`)
+  const queryString = query.toString()
+  return apiRequest(`/products${queryString ? `?${queryString}` : ''}`)
 }
 
 export function getProduct(productId) {

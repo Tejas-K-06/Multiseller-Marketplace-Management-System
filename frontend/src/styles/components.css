@@ -6,6 +6,8 @@
   border-bottom: 1px solid var(--border);
 }
 
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+
 .nav-bar,
 .site-footer-inner,
 .page {
@@ -168,7 +170,7 @@
 .detail-section h1, .detail-section h2, .detail-section p { margin-top: 0; }
 .variant-list, .offer-list, .review-list, .stack-list { display: grid; gap: var(--space-3); }
 .variant-card, .offer-row, .review-item { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); }
-.variant-header, .offer-row, .review-header, .inline-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.variant-header, .offer-row, .review-header, .inline-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
 .offer-row { flex-wrap: wrap; }
 .offer-actions { display: flex; align-items: center; gap: var(--space-2); }
 .skeleton-list { display: grid; gap: var(--space-4); }
