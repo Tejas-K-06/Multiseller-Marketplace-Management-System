@@ -10,6 +10,7 @@ const mappings = {
   SUCCESS: ['Paid', 'badge-solid', Check],
   FAILED: ['Payment failed', 'badge-outline', AlertCircle],
   REFUNDED: ['Refunded', 'badge-tint', Undo2],
+  ACTIVE: ['Active', 'badge-solid'],
   APPROVED: ['Approved', 'badge-solid', Check],
   REJECTED: ['Rejected', 'badge-outline', X],
   INACTIVE: ['Inactive', 'badge-outline']

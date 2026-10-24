@@ -210,6 +210,16 @@ dialog.confirm-dialog { max-width: 28rem; padding: var(--space-6); background: v
 dialog.confirm-dialog::backdrop { background: var(--overlay); }
 dialog.confirm-dialog .inline-actions { justify-content: flex-end; margin-top: var(--space-4); }
 .payment-failed { display: grid; gap: var(--space-3); }
+.dashboard-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.stat-card { display: grid; gap: var(--space-2); }
+.stat-value { font-family: var(--font-mono); font-size: 1.625rem; font-weight: 500; }
+.tree-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tree-child { margin-left: var(--space-6); }
+.admin-toolbar { display: flex; align-items: end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+.form-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.inline-form { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
+.product-editor { display: grid; gap: var(--space-4); }
+.offer-edit { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: var(--space-3); }
 
 .auth-page {
   display: grid;
@@ -462,6 +472,9 @@ input[type='radio'] {
   .table-number { text-align: right !important; }
   .wishlist-item { align-items: flex-start; flex-direction: column; }
   .form-grid { grid-template-columns: 1fr; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .admin-toolbar { align-items: flex-start; flex-direction: column; }
+  .offer-edit { grid-template-columns: 1fr; }
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
