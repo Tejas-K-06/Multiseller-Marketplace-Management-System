@@ -1,0 +1,78 @@
+:root {
+  /* colour */
+  --background: #F8FAFC;
+  --card: #FFFFFF;
+  --subtle: #F1F5F9;
+  --border: #E2E8F0;
+  --input: #CBD5E1;
+  --text-muted: #64748B;
+  --text-secondary: #475569;
+  --text-strong: #334155;
+  --foreground: #172554;
+  --navy: #172554;
+  --primary: #1E3A8A;
+  --primary-foreground: #FFFFFF;
+  --brand: #0E7490;
+  --brand-strong: #155E75;
+  --brand-dashed: #0891B2;
+  --brand-border: #A5F3FC;
+  --brand-subtle: #ECFEFF;
+  --hover: #ECFEFF;
+  --destructive: #B91C1C;
+  --disabled-text: #64748B;
+  --focus-ring: rgba(14, 116, 144, 0.18);
+  --overlay: rgba(23, 37, 84, 0.4);
+
+  /* shape */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --shadow-float: 0 12px 28px rgba(23, 37, 84, 0.14);
+
+  /* spacing: 4px grid */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-16: 64px;
+
+  /* fonts */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font: 400 0.875rem/1.55 var(--font-sans);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: var(--brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
