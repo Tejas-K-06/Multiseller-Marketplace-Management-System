@@ -1,0 +1,4 @@
+import { pool } from '../config/db.js'; import { httpError } from '../utils/httpError.js';
+export async function findValidByCode(code){const [r]=await pool.execute('SELECT coupon_id AS couponId,code,discount_type AS discountType,discount_value AS discountValue,valid_until AS validUntil FROM coupon WHERE code=?',[code]);if(!r.length)throw httpError(404,'Coupon not found');if(new Date(r[0].validUntil)<new Date(new Date().toDateString()))throw httpError(400,'Coupon has expired');return r[0];}
+export async function create(data){const [r]=await pool.execute('INSERT INTO coupon (code,discount_type,discount_value,valid_until) VALUES (?,?,?,?)',[data.code,data.discountType,data.discountValue,data.validUntil]);return {couponId:r.insertId};}
+export async function listAll(){const [r]=await pool.execute('SELECT coupon_id AS couponId,code,discount_type AS discountType,discount_value AS discountValue,valid_until AS validUntil FROM coupon ORDER BY coupon_id');return r;}
