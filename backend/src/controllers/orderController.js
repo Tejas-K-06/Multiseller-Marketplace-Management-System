@@ -1,4 +1,5 @@
 import * as orderModel from '../models/orderModel.js';
+import * as paymentModel from '../models/paymentModel.js';
 import { httpError } from '../utils/httpError.js';
 import { sendSuccess } from '../utils/response.js';
 
@@ -54,4 +55,20 @@ export async function getOrder(req, res) {
 export async function cancelOrder(req, res) {
   const orderId = positiveInteger(req.params.id, 'Order ID');
   return sendSuccess(res, await orderModel.cancel(orderId, req.user.userId));
+}
+
+export async function pay(req, res) {
+  const orderId = positiveInteger(req.params.id, 'Order ID');
+  const outcome = req.body?.outcome ?? 'SUCCESS';
+  if (!['SUCCESS', 'FAIL'].includes(outcome)) throw httpError(400, 'outcome must be SUCCESS or FAIL');
+
+  const orders = await orderModel.listByBuyer(req.user.userId);
+  if (!orders.some((order) => Number(order.orderId ?? order.order_id) === orderId)) {
+    throw httpError(404, 'Order not found');
+  }
+  const order = await orderModel.getDetail(orderId);
+  if (!order) throw httpError(404, 'Order not found');
+  if (order.status !== 'PLACED') throw httpError(400, 'Only placed orders can be paid');
+
+  return sendSuccess(res, await paymentModel.simulatePay(orderId, req.user.userId, outcome));
 }
