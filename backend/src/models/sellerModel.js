@@ -1,12 +1,266 @@
 import { pool, withTransaction } from '../config/db.js';
 import { httpError } from '../utils/httpError.js';
-export async function getApproval(sellerId){const [r]=await pool.execute('SELECT approval_status AS approvalStatus FROM seller WHERE user_id=?',[sellerId]);return r[0]||null;}
-export async function listProducts(sellerId){const [r]=await pool.execute('SELECT product_id AS productId,category_id AS categoryId,title,description,status FROM product WHERE seller_id=? ORDER BY product_id',[sellerId]);return r;}
-export async function createProduct(sellerId,data){const [r]=await pool.execute('INSERT INTO product (seller_id,category_id,title,description) VALUES (?,?,?,?)',[sellerId,data.categoryId,data.title,data.description||null]);return {productId:r.insertId};}
-export async function updateProduct(productId,sellerId,data){const fields=[],params=[];for(const [key,column] of [['categoryId','category_id'],['title','title'],['description','description'],['status','status']])if(data[key]!==undefined){fields.push(`${column}=?`);params.push(data[key]);}if(!fields.length)throw httpError(400,'No product fields supplied');params.push(productId,sellerId);const [r]=await pool.execute(`UPDATE product SET ${fields.join(', ')} WHERE product_id=? AND seller_id=?`,params);return {updated:Boolean(r.affectedRows)};}
-export async function addVariant(productId,sellerId,data){const [owned]=await pool.execute('SELECT 1 FROM product WHERE product_id=? AND seller_id=?',[productId,sellerId]);if(!owned.length)throw httpError(403,'Product does not belong to seller');const [r]=await pool.execute('INSERT INTO product_variant (product_id,sku,size,colour,weight_kg) VALUES (?,?,?,?,?)',[productId,data.sku,data.size||null,data.colour||null,data.weightKg||null]);return {variantId:r.insertId};}
-export async function upsertOffer(variantId,sellerId,data){const [owned]=await pool.execute('SELECT 1 FROM product_variant v JOIN product p ON p.product_id=v.product_id WHERE v.variant_id=? AND p.seller_id=?',[variantId,sellerId]);if(!owned.length)throw httpError(403,'Variant does not belong to seller');const [r]=await pool.execute('INSERT INTO offer (variant_id,seller_id,price,stock_quantity,cod_eligible) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE price=VALUES(price),stock_quantity=VALUES(stock_quantity),cod_eligible=VALUES(cod_eligible)',[variantId,sellerId,data.price,data.stockQuantity, data.codEligible ?? true]);return {offerId:r.insertId};}
-export async function updateOffer(offerId,sellerId,{price,stock,status,codEligible}){const f=[],p=[];for(const [v,c] of [[price,'price'],[stock,'stock_quantity'],[status,'status'],[codEligible,'cod_eligible']])if(v!==undefined){f.push(`${c}=?`);p.push(v);}if(!f.length)throw httpError(400,'No offer fields supplied');p.push(offerId,sellerId);const [r]=await pool.execute(`UPDATE offer SET ${f.join(',')} WHERE offer_id=? AND seller_id=?`,p);return {updated:Boolean(r.affectedRows)};}
-export async function listSubOrders(sellerId){const [r]=await pool.execute(`SELECT so.sub_order_id AS subOrderId,so.order_id AS orderId,so.status,u.full_name AS buyerName,a.city,o.order_date AS orderDate,sp.seller_payable AS sellerPayable,sh.tracking_number AS trackingNumber FROM sub_orders so JOIN orders o ON o.order_id=so.order_id JOIN users u ON u.user_id=o.buyer_id JOIN address a ON a.address_id=o.address_id JOIN v_seller_payable sp ON sp.sub_order_id=so.sub_order_id LEFT JOIN shipment sh ON sh.sub_order_id=so.sub_order_id WHERE so.seller_id=? ORDER BY so.sub_order_id`,[sellerId]);return r;}
-export async function getSubOrder(subOrderId,sellerId){const [r]=await pool.execute('SELECT sub_order_id AS subOrderId,order_id AS orderId,status FROM sub_orders WHERE sub_order_id=? AND seller_id=?',[subOrderId,sellerId]);return r[0]||null;}
-export async function updateSubOrderStatus(subOrderId,sellerId,status){return withTransaction(async conn=>{const [r]=await conn.execute('SELECT order_id AS orderId,status FROM sub_orders WHERE sub_order_id=? AND seller_id=? FOR UPDATE',[subOrderId,sellerId]);if(!r.length)throw httpError(404,'Sub-order not found');const current=r[0];const next={PENDING:'CONFIRMED',CONFIRMED:'SHIPPED',SHIPPED:'DELIVERED'};if(next[current.status]!==status)throw httpError(400,'Status transition must be forward by one step');await conn.execute('UPDATE sub_orders SET status=? WHERE sub_order_id=?',[status,subOrderId]);let trackingNumber=null;if(status==='SHIPPED'){trackingNumber=`TRK${Date.now()}`;await conn.execute('INSERT INTO shipment (sub_order_id,tracking_number) VALUES (?,?)',[subOrderId,trackingNumber]);}if(status==='DELIVERED'){const [open]=await conn.execute("SELECT 1 FROM sub_orders WHERE order_id=? AND status<>'DELIVERED' LIMIT 1",[current.orderId]);if(!open.length){await conn.execute("UPDATE orders SET status='DELIVERED' WHERE order_id=?",[current.orderId]);await conn.execute("UPDATE payment SET status='SUCCESS',paid_at=CURRENT_TIMESTAMP WHERE order_id=? AND method='COD' AND status='PENDING'",[current.orderId]);}}return {subOrderId,status, ...(trackingNumber&&{trackingNumber})};});}
+
+export async function getApproval(sellerId) {
+  const [rows] = await pool.execute(
+    'SELECT approval_status AS approvalStatus FROM seller WHERE user_id = ?',
+    [sellerId]
+  );
+  return rows[0] || null;
+}
+
+export async function listProducts(sellerId) {
+  const [rows] = await pool.execute(
+    `SELECT product_id AS productId,
+            category_id AS categoryId,
+            title,
+            description,
+            status
+     FROM product
+     WHERE seller_id = ?
+     ORDER BY product_id`,
+    [sellerId]
+  );
+  return rows;
+}
+
+export async function createProduct(sellerId, data) {
+  const [result] = await pool.execute(
+    'INSERT INTO product (seller_id, category_id, title, description) VALUES (?, ?, ?, ?)',
+    [sellerId, data.categoryId, data.title, data.description || null]
+  );
+  return { productId: result.insertId };
+}
+
+export async function updateProduct(productId, sellerId, data) {
+  const fields = [];
+  const params = [];
+
+  for (const [key, column] of [
+    ['categoryId', 'category_id'],
+    ['title', 'title'],
+    ['description', 'description'],
+    ['status', 'status']
+  ]) {
+    if (data[key] !== undefined) {
+      fields.push(`${column} = ?`);
+      params.push(data[key]);
+    }
+  }
+
+  if (!fields.length) {
+    throw httpError(400, 'No product fields supplied');
+  }
+
+  params.push(productId, sellerId);
+  const [result] = await pool.execute(
+    `UPDATE product SET ${fields.join(', ')} WHERE product_id = ? AND seller_id = ?`,
+    params
+  );
+  return { updated: Boolean(result.affectedRows) };
+}
+
+export async function addVariant(productId, sellerId, data) {
+  const [owned] = await pool.execute(
+    'SELECT 1 FROM product WHERE product_id = ? AND seller_id = ?',
+    [productId, sellerId]
+  );
+  if (!owned.length) {
+    throw httpError(403, 'Product does not belong to seller');
+  }
+
+  const [result] = await pool.execute(
+    'INSERT INTO product_variant (product_id, sku, size, colour, weight_kg) VALUES (?, ?, ?, ?, ?)',
+    [productId, data.sku, data.size || null, data.colour || null, data.weightKg || null]
+  );
+  return { variantId: result.insertId };
+}
+
+export async function upsertOffer(variantId, sellerId, data) {
+  const [owned] = await pool.execute(
+    `SELECT 1
+     FROM product_variant v
+     JOIN product p ON p.product_id = v.product_id
+     WHERE v.variant_id = ? AND p.seller_id = ?`,
+    [variantId, sellerId]
+  );
+  if (!owned.length) {
+    throw httpError(403, 'Variant does not belong to seller');
+  }
+
+  const [result] = await pool.execute(
+    `INSERT INTO offer (variant_id, seller_id, price, stock_quantity, cod_eligible)
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       price = VALUES(price),
+       stock_quantity = VALUES(stock_quantity),
+       cod_eligible = VALUES(cod_eligible)`,
+    [variantId, sellerId, data.price, data.stockQuantity, data.codEligible ?? true]
+  );
+  return { offerId: result.insertId };
+}
+
+export async function updateOffer(offerId, sellerId, { price, stock, status, codEligible }) {
+  const fields = [];
+  const params = [];
+
+  for (const [val, col] of [
+    [price, 'price'],
+    [stock, 'stock_quantity'],
+    [status, 'status'],
+    [codEligible, 'cod_eligible']
+  ]) {
+    if (val !== undefined) {
+      fields.push(`${col} = ?`);
+      params.push(val);
+    }
+  }
+
+  if (!fields.length) {
+    throw httpError(400, 'No offer fields supplied');
+  }
+
+  params.push(offerId, sellerId);
+  const [result] = await pool.execute(
+    `UPDATE offer SET ${fields.join(', ')} WHERE offer_id = ? AND seller_id = ?`,
+    params
+  );
+  return { updated: Boolean(result.affectedRows) };
+}
+
+export async function listSubOrders(sellerId) {
+  const [subOrders] = await pool.execute(
+    `SELECT so.sub_order_id AS subOrderId,
+            so.order_id AS orderId,
+            so.status,
+            u.full_name AS buyerName,
+            a.city,
+            sp.seller_payable AS sellerPayable,
+            DATE_FORMAT(o.order_date, '%Y-%m-%d') AS orderDate,
+            sh.tracking_number AS trackingNumber
+     FROM sub_orders so
+     JOIN orders o ON o.order_id = so.order_id
+     JOIN users u ON u.user_id = o.buyer_id
+     JOIN address a ON a.address_id = o.address_id
+     JOIN v_seller_payable sp ON sp.sub_order_id = so.sub_order_id
+     LEFT JOIN shipment sh ON sh.sub_order_id = so.sub_order_id
+     WHERE so.seller_id = ?
+     ORDER BY so.sub_order_id`,
+    [sellerId]
+  );
+
+  const [items] = await pool.execute(
+    `SELECT oi.sub_order_id AS subOrderId,
+            p.title,
+            v.sku,
+            oi.quantity,
+            oi.unit_price_snapshot AS unitPrice
+     FROM order_item oi
+     JOIN sub_orders so ON so.sub_order_id = oi.sub_order_id
+     JOIN offer o ON o.offer_id = oi.offer_id
+     JOIN product_variant v ON v.variant_id = o.variant_id
+     JOIN product p ON p.product_id = v.product_id
+     WHERE so.seller_id = ?
+     ORDER BY oi.item_number`,
+    [sellerId]
+  );
+
+  const itemMap = new Map();
+  for (const so of subOrders) {
+    itemMap.set(so.subOrderId, []);
+  }
+
+  for (const item of items) {
+    const list = itemMap.get(item.subOrderId);
+    if (list) {
+      list.push({
+        title: item.title,
+        sku: item.sku,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice)
+      });
+    }
+  }
+
+  return subOrders.map((so) => ({
+    subOrderId: so.subOrderId,
+    orderId: so.orderId,
+    status: so.status,
+    buyerName: so.buyerName,
+    city: so.city,
+    sellerPayable: Number(so.sellerPayable),
+    orderDate: so.orderDate,
+    items: itemMap.get(so.subOrderId) || [],
+    trackingNumber: so.trackingNumber || null
+  }));
+}
+
+export async function getSubOrder(subOrderId, sellerId) {
+  const [rows] = await pool.execute(
+    'SELECT sub_order_id AS subOrderId, order_id AS orderId, status FROM sub_orders WHERE sub_order_id = ? AND seller_id = ?',
+    [subOrderId, sellerId]
+  );
+  return rows[0] || null;
+}
+
+export async function updateSubOrderStatus(subOrderId, sellerId, status) {
+  return withTransaction(async (conn) => {
+    const [rows] = await conn.execute(
+      'SELECT order_id AS orderId, status FROM sub_orders WHERE sub_order_id = ? AND seller_id = ? FOR UPDATE',
+      [subOrderId, sellerId]
+    );
+
+    if (!rows.length) {
+      throw httpError(404, 'Sub-order not found');
+    }
+
+    const current = rows[0];
+    const nextTransitions = {
+      PENDING: 'CONFIRMED',
+      CONFIRMED: 'SHIPPED',
+      SHIPPED: 'DELIVERED'
+    };
+
+    if (nextTransitions[current.status] !== status) {
+      throw httpError(400, 'Status transition must be forward by one step');
+    }
+
+    await conn.execute(
+      'UPDATE sub_orders SET status = ? WHERE sub_order_id = ?',
+      [status, subOrderId]
+    );
+
+    let trackingNumber = null;
+    if (status === 'SHIPPED') {
+      trackingNumber = `TRK${Date.now()}`;
+      await conn.execute(
+        'INSERT INTO shipment (sub_order_id, tracking_number) VALUES (?, ?)',
+        [subOrderId, trackingNumber]
+      );
+    }
+
+    if (status === 'DELIVERED') {
+      const [openSubOrders] = await conn.execute(
+        "SELECT 1 FROM sub_orders WHERE order_id = ? AND status <> 'DELIVERED' LIMIT 1",
+        [current.orderId]
+      );
+
+      if (!openSubOrders.length) {
+        await conn.execute(
+          "UPDATE orders SET status = 'DELIVERED' WHERE order_id = ?",
+          [current.orderId]
+        );
+        await conn.execute(
+          "UPDATE payment SET status = 'SUCCESS', paid_at = CURRENT_TIMESTAMP WHERE order_id = ? AND method = 'COD' AND status = 'PENDING'",
+          [current.orderId]
+        );
+      }
+    }
+
+    return {
+      subOrderId,
+      status,
+      ...(trackingNumber && { trackingNumber })
+    };
+  });
+}
