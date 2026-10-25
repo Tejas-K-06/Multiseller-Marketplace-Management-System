@@ -1,17 +1,9 @@
 import * as adminModel from '../models/adminModel.js';
 import { httpError } from '../utils/httpError.js';
 import { sendSuccess } from '../utils/response.js';
+import { positiveInteger } from '../middleware/validate.js';
 
 const sellerStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
-
-function positiveInteger(value, field) {
-  if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) {
-    throw httpError(400, `${field} must be a positive integer`);
-  }
-  const number = Number(value);
-  if (!Number.isSafeInteger(number) || number < 1) throw httpError(400, `${field} must be a positive integer`);
-  return number;
-}
 
 export async function listSellers(req, res) {
   const status = req.query.status;

@@ -20,13 +20,25 @@ function publicUser(user) {
 export async function register(req, res) {
   const { email, password, fullName, phone, role, storeName, taxId } = req.body ?? {};
 
-  if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) throw httpError(400, 'A valid email is required');
-  if (typeof password !== 'string' || password.length < 6) throw httpError(400, 'Password must be at least 6 characters');
-  if (typeof fullName !== 'string' || !fullName.trim()) throw httpError(400, 'Full name is required');
-  if (phone && (typeof phone !== 'string' || !/^\d{10}$/.test(phone))) throw httpError(400, 'Phone must be 10 digits');
+  if (typeof email !== 'string' || email.trim().length > 100
+      || !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email.trim())) {
+    throw httpError(400, 'A valid email of at most 100 characters is required');
+  }
+  if (typeof password !== 'string' || password.length < 6 || Buffer.byteLength(password, 'utf8') > 72) {
+    throw httpError(400, 'Password must be 6 to 72 bytes');
+  }
+  if (typeof fullName !== 'string' || !fullName.trim() || fullName.trim().length > 100) {
+    throw httpError(400, 'Full name is required and must be at most 100 characters');
+  }
+  if (phone !== undefined && phone !== null && phone !== ''
+      && (typeof phone !== 'string' || !/^\d{10}$/.test(phone))) throw httpError(400, 'Phone must be 10 digits');
   if (!['BUYER', 'SELLER'].includes(role)) throw httpError(400, 'Role must be BUYER or SELLER');
   if (role === 'SELLER' && (typeof storeName !== 'string' || !storeName.trim())) {
     throw httpError(400, 'Store name is required for sellers');
+  }
+  if (role === 'SELLER' && storeName.trim().length > 100) throw httpError(400, 'Store name must be at most 100 characters');
+  if (taxId !== undefined && taxId !== null && (typeof taxId !== 'string' || taxId.length > 20)) {
+    throw httpError(400, 'taxId must be at most 20 characters');
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -45,8 +57,10 @@ export async function register(req, res) {
 
 export async function login(req, res) {
   const { email, password } = req.body ?? {};
-  if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
-    throw httpError(400, 'Email and password are required');
+  if (typeof email !== 'string' || email.trim().length > 100
+      || !/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email.trim())
+      || typeof password !== 'string' || !password || Buffer.byteLength(password, 'utf8') > 72) {
+    throw httpError(400, 'A valid email and password are required');
   }
 
   const user = await userModel.findByEmail(email.trim().toLowerCase());

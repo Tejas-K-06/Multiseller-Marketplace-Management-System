@@ -2,17 +2,9 @@ import * as orderModel from '../models/orderModel.js';
 import * as paymentModel from '../models/paymentModel.js';
 import { httpError } from '../utils/httpError.js';
 import { sendSuccess } from '../utils/response.js';
+import { positiveInteger } from '../middleware/validate.js';
 
 const paymentMethods = ['COD', 'UPI', 'CARD', 'NETBANKING'];
-
-function positiveInteger(value, field) {
-  if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) {
-    throw httpError(400, `${field} must be a positive integer`);
-  }
-  const number = Number(value);
-  if (!Number.isSafeInteger(number) || number < 1) throw httpError(400, `${field} must be a positive integer`);
-  return number;
-}
 
 export async function checkout(req, res) {
   const body = req.body ?? {};

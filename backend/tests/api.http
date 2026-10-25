@@ -1,0 +1,497 @@
+### B7 REST Client smoke suite
+# Run requests in order against a disposable database with the schema and seed data loaded.
+# Replace the admin login values with the seeded admin account before running.
+# Change buyer/seller email values for each fresh database run.
+
+@base = http://localhost:5000/api
+@buyerEmail = b7-buyer@example.test
+@sellerEmail = b7-seller@example.test
+@accountPassword = ChangeMe123
+@adminEmail = replace-with-seeded-admin-email
+@adminPassword = replace-with-seeded-admin-password
+
+### B1 PASS: health response
+GET {{base}}/health
+
+### B1 PASS: unknown path is JSON 404
+GET {{base}}/unknown-b7-route
+
+### B2 PASS: register buyer (201); rerun on a fresh database or change email
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{buyerEmail}}",
+  "password": "{{accountPassword}}",
+  "fullName": "B7 Buyer",
+  "phone": "9876543210",
+  "role": "BUYER"
+}
+
+### B7 PASS: invalid email is rejected before database access (400)
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "ChangeMe123",
+  "fullName": "Invalid Email",
+  "role": "BUYER"
+}
+
+### B2 PASS: buyer login (200)
+# @name buyerLogin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{buyerEmail}}",
+  "password": "{{accountPassword}}"
+}
+
+### B2 PASS: current user (200)
+GET {{base}}/auth/me
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B2 PASS: buyer address list (200)
+GET {{base}}/addresses
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B2 PASS: create buyer address (201)
+# @name addressCreate
+POST {{base}}/addresses
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "line1": "12 Example Road",
+  "city": "Pune",
+  "state": "Maharashtra",
+  "postalCode": "411001",
+  "isDefault": true
+}
+
+### B7 PASS: address exceeding database column length is rejected (400)
+POST {{base}}/addresses
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "line1": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "city": "Pune",
+  "state": "Maharashtra",
+  "postalCode": "411001"
+}
+
+### B2 PASS: create unused address for delete test (201)
+# @name unusedAddress
+POST {{base}}/addresses
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "line1": "13 Example Road",
+  "city": "Pune",
+  "state": "Maharashtra",
+  "postalCode": "411002"
+}
+
+### B2 PASS: delete unused buyer address (200)
+DELETE {{base}}/addresses/{{unusedAddress.response.body.$.data.addressId}}
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B3 PASS: public category list (200)
+GET {{base}}/categories
+
+### B6 PASS: seeded admin login (200)
+# @name adminLogin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+### B3 PASS: create category as admin (201)
+# @name categoryCreate
+POST {{base}}/categories
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "name": "B7 Test Category"
+}
+
+### B3 PASS: public product search (200)
+GET {{base}}/products?q=phone&page=1&limit=12
+
+### B7 PASS: invalid page parameter is rejected (400)
+GET {{base}}/products?page=0
+
+### B2 PASS: register seller (201); rerun on a fresh database or change email
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{sellerEmail}}",
+  "password": "{{accountPassword}}",
+  "fullName": "B7 Seller",
+  "phone": "9876543211",
+  "role": "SELLER",
+  "storeName": "B7 Test Store",
+  "taxId": "B7-TAX"
+}
+
+### B2 PASS: seller login (200)
+# @name sellerLogin
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{sellerEmail}}",
+  "password": "{{accountPassword}}"
+}
+
+### B6 PASS: list pending sellers (200)
+GET {{base}}/admin/sellers?status=PENDING
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+
+### B6 PASS: approve test seller (200)
+# @name approveSeller
+PUT {{base}}/admin/sellers/{{sellerLogin.response.body.$.data.user.userId}}/approval
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "status": "APPROVED"
+}
+
+### B3 PASS: list seller products (200)
+GET {{base}}/seller/products
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+
+### B3 PASS: create seller product (201)
+# @name productCreate
+POST {{base}}/seller/products
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "categoryId": {{categoryCreate.response.body.$.data.categoryId}},
+  "title": "B7 Test Product",
+  "description": "Disposable B7 API test product"
+}
+
+### B3 PASS: update seller product (200)
+PUT {{base}}/seller/products/{{productCreate.response.body.$.data.productId}}
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "title": "B7 Test Product Updated"
+}
+
+### B3 PASS: create product variant (201)
+# @name variantCreate
+POST {{base}}/seller/products/{{productCreate.response.body.$.data.productId}}/variants
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "sku": "B7-TEST-SKU-001",
+  "size": "Standard",
+  "colour": "Blue",
+  "weightKg": 1
+}
+
+### B3 PASS: create offer (201)
+# @name offerCreate
+POST {{base}}/seller/variants/{{variantCreate.response.body.$.data.variantId}}/offers
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "price": 100,
+  "stockQuantity": 20,
+  "codEligible": true
+}
+
+### B7 PASS: negative offer stock is rejected (400)
+POST {{base}}/seller/variants/{{variantCreate.response.body.$.data.variantId}}/offers
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "price": 100,
+  "stockQuantity": -1
+}
+
+### B3 PASS: update offer (200)
+PUT {{base}}/seller/offers/{{offerCreate.response.body.$.data.offerId}}
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "price": 100,
+  "stockQuantity": 20,
+  "status": "ACTIVE"
+}
+
+### B3 PASS: product detail (200)
+GET {{base}}/products/{{productCreate.response.body.$.data.productId}}
+
+### B3 PASS: product reviews list (200)
+GET {{base}}/products/{{productCreate.response.body.$.data.productId}}/reviews
+
+### B4 PASS: get buyer cart (200)
+GET {{base}}/cart
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B4 PASS: add offer to cart (201)
+POST {{base}}/cart/items
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "offerId": {{offerCreate.response.body.$.data.offerId}},
+  "quantity": 2
+}
+
+### B7 PASS: zero cart quantity is rejected (400)
+POST {{base}}/cart/items
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "offerId": {{offerCreate.response.body.$.data.offerId}},
+  "quantity": 0
+}
+
+### B4 PASS: set cart item quantity (200)
+PUT {{base}}/cart/items/1
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "quantity": 1
+}
+
+### B4 PASS: remove cart item (200)
+DELETE {{base}}/cart/items/1
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B4 PASS: create wishlist (201)
+# @name wishlistCreate
+POST {{base}}/wishlists
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "name": "B7 Test Wishlist"
+}
+
+### B4 PASS: list wishlists (200)
+GET {{base}}/wishlists
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B4 PASS: add variant to wishlist (201)
+POST {{base}}/wishlists/{{wishlistCreate.response.body.$.data.wishlistId}}/items
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "variantId": {{variantCreate.response.body.$.data.variantId}}
+}
+
+### B4 PASS: remove wishlist variant (200)
+DELETE {{base}}/wishlists/{{wishlistCreate.response.body.$.data.wishlistId}}/items/{{variantCreate.response.body.$.data.variantId}}
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B6 PASS: create coupon (201)
+# @name couponCreate
+POST {{base}}/coupons
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "code": "B7TEST10",
+  "discountType": "PERCENT",
+  "discountValue": 10,
+  "validUntil": "2099-12-31"
+}
+
+### B6 PASS: list coupons (200)
+GET {{base}}/coupons
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+
+### B5 PASS: validate coupon (200)
+GET {{base}}/coupons/validate?code=B7TEST10
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B5 PASS: add checkout offer back to cart (201)
+POST {{base}}/cart/items
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "offerId": {{offerCreate.response.body.$.data.offerId}},
+  "quantity": 2
+}
+
+### B5 PASS: checkout (201)
+# @name checkout
+POST {{base}}/orders/checkout
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "addressId": {{addressCreate.response.body.$.data.addressId}},
+  "couponCode": "B7TEST10",
+  "paymentMethod": "UPI"
+}
+
+### B7 PASS: invalid payment method is rejected (400)
+POST {{base}}/orders/checkout
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "addressId": {{addressCreate.response.body.$.data.addressId}},
+  "paymentMethod": "BITCOIN"
+}
+
+### B5 PASS: buyer order list (200)
+GET {{base}}/orders
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B5 PASS: buyer order detail with sub-orders/items (200)
+# @name orderDetail
+GET {{base}}/orders/{{checkout.response.body.$.data.orderId}}
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B6 PASS: simulate failed payment (200)
+POST {{base}}/orders/{{checkout.response.body.$.data.orderId}}/pay
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "outcome": "FAIL"
+}
+
+### B6 PASS: retry payment successfully (200)
+POST {{base}}/orders/{{checkout.response.body.$.data.orderId}}/pay
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "outcome": "SUCCESS"
+}
+
+### B5 PASS: seller sub-order list (200)
+# @name sellerSubOrders
+GET {{base}}/seller/sub-orders?status=PENDING
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+
+### B5 PASS: seller confirms sub-order (200)
+PUT {{base}}/seller/sub-orders/{{orderDetail.response.body.$.data.subOrders[0].subOrderId}}/status
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "status": "CONFIRMED"
+}
+
+### B5 PASS: seller ships sub-order and creates shipment (200)
+PUT {{base}}/seller/sub-orders/{{orderDetail.response.body.$.data.subOrders[0].subOrderId}}/status
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "status": "SHIPPED"
+}
+
+### B5 PASS: seller delivers sub-order (200)
+PUT {{base}}/seller/sub-orders/{{orderDetail.response.body.$.data.subOrders[0].subOrderId}}/status
+Authorization: Bearer {{sellerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "status": "DELIVERED"
+}
+
+### B6 PASS: buyer creates verified product review (201)
+POST {{base}}/reviews
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "orderId": {{checkout.response.body.$.data.orderId}},
+  "productId": {{productCreate.response.body.$.data.productId}},
+  "rating": 5,
+  "comment": "B7 review test"
+}
+
+### B7 PASS: out-of-range rating is rejected (400)
+POST {{base}}/reviews
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "orderId": {{checkout.response.body.$.data.orderId}},
+  "productId": {{productCreate.response.body.$.data.productId}},
+  "rating": 6
+}
+
+### B6 PASS: admin seller orders list (200)
+GET {{base}}/admin/orders
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+
+### B7 PASS: invalid seller approval state is rejected (400)
+PUT {{base}}/admin/sellers/{{sellerLogin.response.body.$.data.user.userId}}/approval
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "status": "PENDING"
+}
+
+### B6 PASS: admin stats (200)
+GET {{base}}/admin/stats
+Authorization: Bearer {{adminLogin.response.body.$.data.token}}
+
+### B5 PASS: create a second checkout for cancellation test
+POST {{base}}/cart/items
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "offerId": {{offerCreate.response.body.$.data.offerId}},
+  "quantity": 1
+}
+
+### B5 PASS: create an order to cancel before seller confirmation (201)
+# @name cancelCheckout
+POST {{base}}/orders/checkout
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{
+  "addressId": {{addressCreate.response.body.$.data.addressId}},
+  "paymentMethod": "COD"
+}
+
+### B5 PASS: cancel pending order (200)
+PUT {{base}}/orders/{{cancelCheckout.response.body.$.data.orderId}}/cancel
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B2/B4/B5/B6 PASS: representative authorization failure (403)
+GET {{base}}/admin/stats
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+
+### B7 PASS: malformed JSON returns JSON 400
+POST {{base}}/addresses
+Authorization: Bearer {{buyerLogin.response.body.$.data.token}}
+Content-Type: application/json
+
+{"line1": }

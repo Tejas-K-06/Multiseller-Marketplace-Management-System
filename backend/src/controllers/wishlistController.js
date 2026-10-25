@@ -1,15 +1,7 @@
 import * as wishlistModel from '../models/wishlistModel.js';
 import { httpError } from '../utils/httpError.js';
 import { sendSuccess } from '../utils/response.js';
-
-function positiveInteger(value, field) {
-  if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) {
-    throw httpError(400, `${field} must be a positive integer`);
-  }
-  const number = Number(value);
-  if (!Number.isSafeInteger(number) || number < 1) throw httpError(400, `${field} must be a positive integer`);
-  return number;
-}
+import { positiveInteger } from '../middleware/validate.js';
 
 export async function list(req, res) {
   return sendSuccess(res, await wishlistModel.listByBuyer(req.user.userId));

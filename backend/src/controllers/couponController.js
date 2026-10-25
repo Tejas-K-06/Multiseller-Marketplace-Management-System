@@ -1,6 +1,7 @@
 import * as couponModel from '../models/couponModel.js';
 import { httpError } from '../utils/httpError.js';
 import { sendSuccess } from '../utils/response.js';
+import { validateDecimal } from '../middleware/validate.js';
 
 export async function listAll(req, res) {
   return sendSuccess(res, await couponModel.listAll());
@@ -18,6 +19,7 @@ export async function create(req, res) {
       || body.discountValue <= 0 || body.discountValue > 99999999.99) {
     throw httpError(400, 'discountValue must be a positive number');
   }
+  validateDecimal(body.discountValue, 2, 'discountValue');
   if (typeof body.validUntil !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.validUntil)) {
     throw httpError(400, 'validUntil must be a date in YYYY-MM-DD format');
   }

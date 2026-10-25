@@ -1,15 +1,7 @@
 import * as sellerModel from '../models/sellerModel.js';
 import { httpError } from '../utils/httpError.js';
 import { sendSuccess } from '../utils/response.js';
-
-function positiveInteger(value, field) {
-  if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) {
-    throw httpError(400, `${field} must be a positive integer`);
-  }
-  const number = Number(value);
-  if (!Number.isSafeInteger(number) || number < 1) throw httpError(400, `${field} must be a positive integer`);
-  return number;
-}
+import { positiveInteger, validateDecimal } from '../middleware/validate.js';
 
 function databaseError(err) {
   if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_NO_REFERENCED_ROW') {
@@ -93,6 +85,7 @@ export async function addVariant(req, res) {
   if (weightKg != null && (typeof weightKg !== 'number' || !Number.isFinite(weightKg) || weightKg < 0 || weightKg > 999.999)) {
     throw httpError(400, 'weightKg must be between 0 and 999.999');
   }
+  if (weightKg != null) validateDecimal(weightKg, 3, 'weightKg');
 
   try {
     const variant = await sellerModel.addVariant(productId, req.user.userId, {
@@ -110,7 +103,8 @@ export async function createOffer(req, res) {
   if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0 || price > 99999999.99) {
     throw httpError(400, 'price must be a positive number');
   }
-  if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
+  validateDecimal(price, 2, 'price');
+  if (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 2147483647) {
     throw httpError(400, 'stockQuantity must be a non-negative integer');
   }
   if (typeof codEligible !== 'boolean') throw httpError(400, 'codEligible must be a boolean');
@@ -134,10 +128,11 @@ export async function updateOffer(req, res) {
     if (typeof body.price !== 'number' || !Number.isFinite(body.price) || body.price <= 0 || body.price > 99999999.99) {
       throw httpError(400, 'price must be a positive number');
     }
+    validateDecimal(body.price, 2, 'price');
     update.price = body.price;
   }
   if (Object.hasOwn(body, 'stockQuantity')) {
-    if (!Number.isInteger(body.stockQuantity) || body.stockQuantity < 0) {
+    if (!Number.isInteger(body.stockQuantity) || body.stockQuantity < 0 || body.stockQuantity > 2147483647) {
       throw httpError(400, 'stockQuantity must be a non-negative integer');
     }
     update.stock = body.stockQuantity;
