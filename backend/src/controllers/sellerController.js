@@ -155,3 +155,22 @@ export async function updateOffer(req, res) {
   if (!result.updated) throw httpError(404, 'Offer not found');
   return sendSuccess(res, { updated: true });
 }
+
+export async function listSubOrders(req, res) {
+  let subOrders = await sellerModel.listSubOrders(req.user.userId);
+  if (req.query.status !== undefined) {
+    const statuses = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    if (!statuses.includes(req.query.status)) throw httpError(400, 'status is invalid');
+    subOrders = subOrders.filter((subOrder) => subOrder.status === req.query.status);
+  }
+  return sendSuccess(res, subOrders);
+}
+
+export async function updateSubOrderStatus(req, res) {
+  const subOrderId = positiveInteger(req.params.id, 'Sub-order ID');
+  const { status } = req.body ?? {};
+  if (!['CONFIRMED', 'SHIPPED', 'DELIVERED'].includes(status)) {
+    throw httpError(400, 'status must be CONFIRMED, SHIPPED, or DELIVERED');
+  }
+  return sendSuccess(res, await sellerModel.updateSubOrderStatus(subOrderId, req.user.userId, status));
+}
