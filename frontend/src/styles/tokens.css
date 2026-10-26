@@ -74,5 +74,6 @@ a {
   *, *::before, *::after {
     transition: none !important;
     animation: none !important;
+    transform: none !important;
   }
 }

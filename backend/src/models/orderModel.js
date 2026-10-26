@@ -252,6 +252,14 @@ export async function getDetail(orderId) {
   };
 }
 
+export async function belongsToBuyer(orderId, buyerId) {
+  const [rows] = await pool.execute(
+    'SELECT 1 FROM orders WHERE order_id = ? AND buyer_id = ? LIMIT 1',
+    [orderId, buyerId]
+  );
+  return rows.length > 0;
+}
+
 export async function cancel(orderId, buyerId) {
   return withTransaction(async (conn) => {
     const [order] = await conn.execute(

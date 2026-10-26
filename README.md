@@ -35,15 +35,15 @@ Buyer registration and login, catalog search and category filters, product varia
    mysql -u <mysql-user> -p < database/03_seed.sql
    ```
 
-3. Install backend dependencies and generate the bcrypt hash used by the seed accounts:
+3. Install backend dependencies. The seed file already contains the bcrypt hash for
+   `Password@123`:
 
    ```bash
    cd backend
    npm install
-   node -e "console.log(require('bcryptjs').hashSync('Password@123', 10))"
    ```
 
-   Replace `REPLACE_WITH_BCRYPT_HASH` in `database/03_seed.sql` with the generated hash, then reload the seed script. Do not commit `backend/.env`, `frontend/.env`, passwords or generated dependency folders.
+   Do not commit `backend/.env`, `frontend/.env`, passwords or generated dependency folders.
 
 4. Copy the environment examples and fill in local values:
 

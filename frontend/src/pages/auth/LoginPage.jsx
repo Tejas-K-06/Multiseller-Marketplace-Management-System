@@ -1,13 +1,18 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import FormField from '../../components/FormField'
 import Message from '../../components/Message'
+import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../context/AuthContext'
 
 function validate(values) {
   const errors = {}
-  if (!/^\S+@\S+\.\S+$/.test(values.email)) errors.email = 'Enter a valid email address.'
-  if (values.password.length < 6) errors.password = 'Password must be at least 6 characters.'
+  if (!/^\S+@\S+\.\S+$/.test(values.email)) {
+    errors.email = 'Enter a valid email address.'
+  }
+  if (values.password.length < 6) {
+    errors.password = 'Password must be at least 6 characters.'
+  }
   return errors
 }
 
@@ -59,21 +64,62 @@ export default function LoginPage() {
   return (
     <main className="page auth-page" id="main-content">
       <section className="card auth-card" aria-labelledby="login-title">
-        <header>
-          <p className="overline">Account access</p>
-          <h1 className="title-lg" id="login-title">Log in</h1>
-          <p className="body">Use your marketplace account to continue.</p>
-        </header>
+        <PageHeader
+          overline="Account access"
+          title="Log in"
+          titleId="login-title"
+          description="Use your marketplace account to continue."
+        />
         {location.state?.message ? <Message>{location.state.message}</Message> : null}
         {message ? <Message>{message}</Message> : null}
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <FormField label="Email" id="email" error={touched.email ? errors.email : ''}>
-            <input className={`input${touched.email && errors.email ? ' input-error' : ''}`} id="email" name="email" type="email" value={values.email} onChange={updateValue} onBlur={() => { setTouched((current) => ({ ...current, email: true })); validateField('email') }} autoComplete="email" required />
+          <FormField
+            label="Email"
+            id="email"
+            error={touched.email ? errors.email : ''}
+          >
+            <input
+              className={`input${touched.email && errors.email ? ' input-error' : ''}`}
+              id="email"
+              name="email"
+              type="email"
+              value={values.email}
+              onChange={updateValue}
+              onBlur={() => {
+                setTouched((current) => ({ ...current, email: true }))
+                validateField('email')
+              }}
+              autoComplete="email"
+              required
+            />
           </FormField>
-          <FormField label="Password" id="password" error={touched.password ? errors.password : ''}>
-            <input className={`input${touched.password && errors.password ? ' input-error' : ''}`} id="password" name="password" type="password" value={values.password} onChange={updateValue} onBlur={() => { setTouched((current) => ({ ...current, password: true })); validateField('password') }} autoComplete="current-password" required />
+          <FormField
+            label="Password"
+            id="password"
+            error={touched.password ? errors.password : ''}
+            helperText="At least 6 characters."
+          >
+            <input
+              className={`input${touched.password && errors.password ? ' input-error' : ''}`}
+              id="password"
+              name="password"
+              type="password"
+              value={values.password}
+              onChange={updateValue}
+              onBlur={() => {
+                setTouched((current) => ({ ...current, password: true }))
+                validateField('password')
+              }}
+              autoComplete="current-password"
+              required
+            />
           </FormField>
-          <button className="btn btn-primary" type="submit" disabled={submitting}>{submitting ? 'Logging in…' : 'Log in'}</button>
+          <button className="btn btn-primary" type="submit" disabled={submitting}>
+            {submitting ? 'Logging in…' : 'Log in'}
+          </button>
+          <p className="small">
+            Don't have an account? <Link to="/register">Create an account</Link>.
+          </p>
         </form>
       </section>
     </main>

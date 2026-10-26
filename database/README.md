@@ -11,19 +11,10 @@ mysql -u <user> -p < database/02_schema_orders.sql
 mysql -u <user> -p < database/03_seed.sql
 ```
 
-## Set the seed password
+## Seed password
 
-The seed data contains a placeholder bcrypt hash. Before loading it, install
-the backend dependencies once, then generate a hash for `Password@123`:
-
-```bash
-cd backend
-npm install
-node -e "console.log(require('bcryptjs').hashSync('Password@123', 10))"
-```
-
-Paste that output in place of `REPLACE_WITH_BCRYPT_HASH` in
-`database/03_seed.sql`. All seed accounts then use `Password@123`:
+The seed data already contains a bcrypt hash for `Password@123`. All seed
+accounts use this password:
 
 | Role | Email |
 | --- | --- |

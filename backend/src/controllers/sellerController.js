@@ -155,3 +155,16 @@ export async function updateOffer(req, res) {
   if (!result.updated) throw httpError(404, 'Offer not found');
   return sendSuccess(res, { updated: true });
 }
+
+export async function listSubOrders(req, res) {
+  return sendSuccess(res, await sellerModel.listSubOrders(req.user.userId));
+}
+
+export async function updateSubOrderStatus(req, res) {
+  const subOrderId = positiveInteger(req.params.subOrderId, 'Sub-order ID');
+  const { status } = req.body ?? {};
+  if (!['CONFIRMED', 'SHIPPED', 'DELIVERED'].includes(status)) {
+    throw httpError(400, 'Status must be CONFIRMED, SHIPPED, or DELIVERED');
+  }
+  return sendSuccess(res, await sellerModel.updateSubOrderStatus(subOrderId, req.user.userId, status));
+}
