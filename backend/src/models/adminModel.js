@@ -20,10 +20,11 @@ export async function listSellers(status) {
 }
 
 export async function setSellerApproval(sellerId, status) {
-  await pool.execute(
+  const [result] = await pool.execute(
     'UPDATE seller SET approval_status = ? WHERE user_id = ?',
     [status, sellerId]
   );
+  if (!result.affectedRows) return null;
   return { userId: sellerId, approvalStatus: status };
 }
 

@@ -1,5 +1,6 @@
 USE marketplace_db;
-SET @pw = '$2b$10$REPLACE_WITH_BCRYPT_HASH';
+-- Seed accounts use the documented password: Password@123
+SET @pw = '$2b$10$f7j2UjqUoS6fiCQYaQPPtOlNSdk6yOAMSsxImX5kgt1K15MnT4uoi';
 
 INSERT INTO users (user_id, email, full_name, phone, password_hash, role) VALUES
  (1,'admin@mkt.com',   'Admin User',   '9000000001', @pw, 'ADMIN'),
